@@ -40,17 +40,20 @@ float speed = PI; //Prędkość kątowa obrotu obiektu
 //int direction = 0;
 //glm::mat4 snake[30];
 //int points = 0;
-const int grid_size = 22;
+bool start = 0;//1 gdy gra wystartowała
+const int grid_size = 42;
+const int num_obstacles = grid_size / 8;
 glm::mat4 M2 = glm::mat4(1.0f);
 glm::mat4 edges[grid_size * 8];
 glm::mat4 field = glm::mat4(1.0f);
-
+glm::mat4 obstacles[num_obstacles];
 char grid[grid_size][grid_size];
-int x_obstacle, y_obstacle, x_head, y_head, x_apple, y_apple,snake_a , snake_b;
+int x_obstacle, y_obstacle, x_head, y_head, x_apple, y_apple;
 int direction = 0;
 // 4-UP, 1-RIGHT, 2-DOWN,3-LEFT
 vector <pair<int, int>> snake;
 bool found_apple = 0;//0 when not found
+
 
 
 void generate_apple()
@@ -68,22 +71,11 @@ void generate_apple()
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
-        if (key == GLFW_KEY_LEFT) {
-            direction = 4;
-            
-        }
-        if (key == GLFW_KEY_RIGHT) {
-            direction = 2;
-            
-        }
-        if (key == GLFW_KEY_UP) {   
-            direction = 1;
-            
-        }
-        if (key == GLFW_KEY_DOWN) { 
-            direction = 3; 
-            
-        }
+        if (key == GLFW_KEY_LEFT && direction!=2) direction = 4;
+        if (key == GLFW_KEY_RIGHT && direction!=4) direction = 2;
+        if (key == GLFW_KEY_UP && direction!=3) direction = 1;
+        if (key == GLFW_KEY_DOWN && direction!=1) direction = 3;
+        start = 1;
     }
 }
 
@@ -94,7 +86,8 @@ void error_callback(int error, const char* description) {
 
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) {
-    M2 = glm::scale(M2, glm::vec3(0.5f, 0.5f, 0.5f));//przeskalowanie segmentu weza do mniejszego rozmiaru
+
+    M2 = glm::scale(M2, glm::vec3(0.25f, 0.25f, 0.25f));//przeskalowanie segmentu weza do mniejszego rozmiaru
     M2 = glm::translate(M2, glm::vec3(0.0f, 0.0f, -5.0f));//przesuniecie weza "w gore"
 
     field = glm::scale(field, glm::vec3(12.0f, 12.0f, 12.0f));//tło/podłoże snake'a
@@ -148,7 +141,7 @@ void initOpenGLProgram(GLFWwindow* window) {
     }
     //koniec ustawiania krawedzi
 
-    for (int i = 0; i < grid_size; i++)
+    for (int i = 0; i < grid_size; i++)//wyczyszczenie przestrzenic gry
     {
         for (int j = 0; j < grid_size; j++)
         {
@@ -156,7 +149,7 @@ void initOpenGLProgram(GLFWwindow* window) {
         }
     }
 
-    for (int i = 0; i < grid_size; i++)
+    for (int i = 0; i < grid_size; i++)//ustawienie krawedzi
     {
         grid[i][0] = '#';
         grid[i][grid_size - 1] = '#';
@@ -170,23 +163,40 @@ void initOpenGLProgram(GLFWwindow* window) {
     x_obstacle = (rand() % (grid_size - 2)) + 1;
     y_obstacle = (rand() % (grid_size - 2)) + 1;
 
-    for (int i = 0; i < grid_size / 2; i++)
+    for (int i = 0; i < num_obstacles; i++)//ustawienie przeszkod
     {
-        x_obstacle = (rand() % (grid_size - 2)) + 1;
-        y_obstacle = (rand() % (grid_size - 2)) + 1;
-        if (grid[x_obstacle][y_obstacle] == ' ')// if found free space
+        //x_obstacle = 1;//(rand() % (grid_size - 2)) + 1;
+        x_obstacle = (rand() % (grid_size - 2) ) + 1 ; // <1;grid_size-2>
+        //y_obstacle = 13;// (rand() % (grid_size - 2)) + 1;
+        y_obstacle = (rand() % (grid_size - 2) ) + 1; // <1;grid_size-2>;
+        if (grid[y_obstacle][x_obstacle] == ' ')// if found free space
         {
-            grid[x_obstacle][y_obstacle] = '#';//set obstacle
+            grid[y_obstacle][x_obstacle] = '#';//set obstacle
+            printf("%d %d \n", x_obstacle,y_obstacle);
+            obstacles[i] = glm::mat4(1.0f);
+            obstacles[i] = glm::scale(obstacles[i], glm::vec3(0.25f, 0.25f, 0.25f));
+            x_obstacle *= 2; y_obstacle *= 2;
+            if (x_obstacle >= 20) { x_obstacle = x_obstacle%(grid_size - 2) ; x_obstacle *= -1; }
+            else { x_obstacle = abs((grid_size - 2) - x_obstacle); }
+
+            if (y_obstacle >= 20) { y_obstacle = y_obstacle % (grid_size - 2);y_obstacle *= -1; }
+            else { y_obstacle = abs((grid_size - 2) - y_obstacle); }
+            
+            obstacles[i] = glm::translate(obstacles[i], glm::vec3(x_obstacle,y_obstacle, -2.5f));
+            //obstacles[i] = glm::translate(obstacles[i], glm::vec3(( - x_obstacle * 2)+21 , ( - y_obstacle*2)+21, -2.0f));
+            //obstacles[i]= glm::translate(obstacles[i], glm::vec3((x_obstacle*2)-20,(y_obstacle*2)-20 , -2.0f));
+            //obstacles[i]=glm::tra
         }
         else
         {
             i--;
         }
     }
+    //Sleep(5000);
     generate_apple();
     // set starting point of snake
-    x_head = grid_size / 2;
-    y_head = grid_size / 2;
+    x_head = grid_size/2;
+    y_head = grid_size/2;
     while (grid[x_head][y_head] != ' ')
     {
         x_head++;
@@ -196,6 +206,8 @@ void initOpenGLProgram(GLFWwindow* window) {
     //vector <pair<int,int>> snake;
     snake.push_back(make_pair(x_head, y_head));
 
+    
+
     initShaders();
     //************Tutaj umieszczaj kod, który należy wykonać raz, na początku programu************
     glClearColor(0, 0, 0, 1);//Ustaw czarny kolor czyszczenia ekranu
@@ -204,45 +216,24 @@ void initOpenGLProgram(GLFWwindow* window) {
 }
 
 
-
-
 //Zwolnienie zasobów zajętych przez program
 void freeOpenGLProgram(GLFWwindow* window) {
     freeShaders();
     //************Tutaj umieszczaj kod, który należy wykonać po zakończeniu pętli głównej************
+
 }
 
 //Procedura rysująca zawartość sceny
 void drawScene(GLFWwindow* window, float angle) {
+    //************Tutaj umieszczaj kod rysujący obraz******************l
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); //Wyczyszczenie bufora kolorów i bufora głębokości
 
-    glm::vec3 cameraPosition(y_head -11, x_head -13, -20.0f);
-    glm::vec3 cameraTarget(y_head-11, x_head-8, 0.0f);
-    glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
-    
-    
-    float rotationAngle = 0.0f;  // Kąt obrotu kamery
+    glm::mat4 V = glm::lookAt( // macierz widoku
+        glm::vec3(0.0f, 0.0f, -25.0f),
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f));
 
- // Dostosowanie kąta obrotu kamery na podstawie kierunku ruchu snake'a
-    if (direction == 4) { // Ruch w górę
-        rotationAngle = 90.0f;  // Kąt obrotu 0 stopni (patrzy w górę)
-    }
-    else if (direction == 1) { // Ruch w prawo
-        rotationAngle = -90.0f;  // Kąt obrotu -90 stopni (patrzy w prawo)
-    }
-    else if (direction == 2) { // Ruch w dół
-        rotationAngle = -90.0f;  // Kąt obrotu 180 stopni (patrzy w dół)
-    }
-    else if (direction == 3) { // Ruch w lewo
-        rotationAngle = 90.0f;  // Kąt obrotu 90 stopni (patrzy w lewo)
-    }
 
-    // Tworzenie macierzy widoku (view matrix) z uwzględnieniem obrotu kamery
-    glm::mat4 viewMatrix = glm::lookAt(cameraPosition, cameraTarget, cameraUp);
-    viewMatrix = glm::rotate(viewMatrix, glm::radians(rotationAngle), glm::vec3(0.0f, 0.0f, 1.0f));
-
-    // Przypisanie macierzy widoku do zmiennej 'V'
-    glm::mat4 V = viewMatrix;
 
     glm::mat4 P = glm::perspective(glm::radians(50.0f), 1.0f, 1.0f, 50.0f); //Wyliczenie macierzy rzutowania
     //glm::mat4 V = glm::lookAt(glm::vec3(0.0f, 0.0f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)); //Wyliczenie macierzy widoku
@@ -268,13 +259,27 @@ void drawScene(GLFWwindow* window, float angle) {
             Models::cube.drawSolid();//narysuj krawedz
         }
 
+        /*for (int j = 0; j < grid_size; j++)
+        {
+            glUniformMatrix4fv(spLambert->u("M"), 1, false, glm::value_ptr(obstacles[j]));
+            glUniform4f(spLambert->u("color"), 1, 0.5, 0, 1); //Ustaw kolor pomaranczowy
+            Models::cube.drawSolid();//narysuj krawedz
+        }*/
+        
+        for (int j = 0; j < num_obstacles; j++)
+        {
+            glUniformMatrix4fv(spLambert->u("M"), 1, false, glm::value_ptr(obstacles[j]));
+            glUniform4f(spLambert->u("color"), 1, 0.5, 0, 1); //Ustaw kolor pomaranczowy
+            Models::cube.drawSolid();//narysuj przeszkode
+        }
+
         if (direction == 4) { M2 = glm::translate(M2, glm::vec3(angle, 0.0f, 0.0f)); }//left
         if (direction == 1) { M2 = glm::translate(M2, glm::vec3(0.0f, angle, 0.0f)); }//UP
         if (direction == 2) { M2 = glm::translate(M2, glm::vec3(-angle, 0.0f, 0.0f)); }//RIGHT
         if (direction == 3) { M2 = glm::translate(M2, glm::vec3(0.0f, -angle, 0.0f)); }//DOWN
 
         glUniformMatrix4fv(spLambert->u("M"), 1, false, glm::value_ptr(M2));//Załadowanie macierzy modelu do programu cieniującego
-        glUniform4f(spLambert->u("color"), 1, 0, 1, 1); //Ustaw kolor czerwony
+        glUniform4f(spLambert->u("color"), 0, 0, 1, 1); //Ustaw kolor niebieski
         Models::cube.drawSolid();//narysowanie glowy snake'a
 
         glfwSwapBuffers(window);
@@ -282,9 +287,6 @@ void drawScene(GLFWwindow* window, float angle) {
     }
 
 
-    //Sleep(10);
-
-//if (M2 == M) { printf("%s", "KOLIZJAAAAAAAAAAAA"); }
 }
 
 
@@ -329,18 +331,22 @@ int main(void)
         int snake_length = snake.size();
         x_head = snake[snake_length - 1].first;
         y_head = snake[snake_length - 1].second;
-       
 
-        if (direction == 1) { x_head++; }
-        else if (direction == 2) { y_head--; }
-        else if (direction == 3) { x_head--; }
-        else if (direction == 4) { y_head++; }
 
-        if (grid[x_head][y_head] != ' ' && grid[x_head][y_head] != '+' && grid[x_head][y_head] != char(219)) {
+        if (direction == 1) { x_head--; }
+        else if (direction == 2) { y_head++; }
+        else if (direction == 3) { x_head++; }
+        else if (direction == 4) { y_head--; }
+
+        if (grid[x_head][y_head] != ' ' && grid[x_head][y_head] != '+' && start == 1) {
             printf("%s \n", "PRZEGRANA");
             printf("%c \n", grid[x_head][y_head]);
             return 0;
         }//jesli snake jest na innym polu niz jablko lub puste
+        else
+        {
+            printf("==%c== \n", grid[x_head][y_head]);
+        }
         if (grid[x_head][y_head] == '+') { found_apple = 1; generate_apple(); }// jesli snake jest na jablku
         snake.push_back(make_pair(x_head, y_head));
         // delete tail (if snake steps on '+') do not proceed
@@ -370,17 +376,6 @@ int main(void)
         cout << "Direction: " << direction << endl;
 
 
-
-
-        /*cout << endl;
-        cout << snake[0].first << " " << snake[0].second << endl;
-        cout<< ">"<<grid[snake[0].first][snake[0].second]<<"<"<<endl;*/
-        //cout << found_apple << endl;
-        //Sleep(300);
-
-        //angle += speed * glfwGetTime()/5; //Oblicz przyrost kąta po obrocie
-        //printf("%f \n", angle);
-        //if (angle > 1) { angle = 0; }
         glfwSetTime(0); //Wyzeruj timer
         drawScene(window, 0.1); //Wykonaj procedurę rysującą
         glfwPollEvents(); //Wykonaj procedury callback w zalezności od zdarzeń jakie zaszły.
